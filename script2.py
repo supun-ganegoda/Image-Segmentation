@@ -8,83 +8,75 @@
 import cv2
 import numpy as np
 
-def region_growing_with_error(image, seed_points, error_threshold, patch_size):
-    # Initialize the segmented image with zeros
-    segmented_image = np.zeros_like(image)
-    visited = np.zeros_like(image, dtype=bool)
+def show_segmentation(mask):
+    cv2.imshow('Segmentation Process', mask)
+    cv2.waitKey(1)  # Keep the window open
 
-    # Create a list to store region means
-    region_means = [image[seed_point[1], seed_point[0]] for seed_point in seed_points]
+def region_growing(image, seed_points, threshold_range):
+    # Create a mask to store the segmented region
+    mask = np.zeros_like(image, dtype=np.uint8)
+    
+    # Create a queue to store the seed points
+    queue = []
+    for seed_point in seed_points:
+        queue.append(seed_point)
+    
+    iteration = 0
+    # Perform the region growing
+    while queue:
+        # Increment iteration count
+        iteration += 1
+        # Pop a seed point from the queue
+        current_point = queue.pop(0)
+        
+        # Get the pixel value at the current point
+        current_value = image[current_point[1], current_point[0]]
+        
+        # Add the current point to the mask
+        mask[current_point[1], current_point[0]] = 255
 
-    # Define a function to calculate the mean of a region
-    def calculate_region_mean(region):
-        return np.mean(region)
-
-    # Define a function to check if a pixel is within the specified error range of the region mean
-    def within_error_range(pixel_value, region_mean):
-        return abs(pixel_value - region_mean) <= error_threshold
-
-    # Define a function to check if a pixel is within the image boundaries
-    def within_image_boundaries(x, y):
-        return 0 <= x < image.shape[1] and 0 <= y < image.shape[0]
-
-    # Define a function to get neighboring pixels of a given pixel within a patch size
-    def get_neighboring_pixels(x, y, patch_size):
-        half_patch = patch_size // 2
-        neighbors = []
-        for i in range(-half_patch, half_patch + 1):
-            for j in range(-half_patch, half_patch + 1):
+        # Display the current state of the segmentation mask
+        if iteration % 10 == 0:  # Update every 10 iterations
+            show_segmentation(mask)
+        
+        # Check neighbors of the current point
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                # Skip the current pixel
                 if i == 0 and j == 0:
                     continue
-                if within_image_boundaries(x + i, y + j):
-                    neighbors.append((x + i, y + j))
-        return neighbors
+                
+                # Get the coordinates of the neighbor
+                x = current_point[0] + i
+                y = current_point[1] + j
+                
+                # Check if the neighbor is within the image boundaries
+                if 0 <= x < image.shape[1] and 0 <= y < image.shape[0]:
+                    # Check if the neighbor is within the threshold range
+                    neighbor_value = image[y, x]
+                    if np.abs(neighbor_value - current_value) <= threshold_range:
+                        # Check if the neighbor is not visited yet
+                        if mask[y, x] == 0:
+                            # Add the neighbor to the queue
+                            queue.append((x, y))
+                            # Mark the neighbor as visited
+                            mask[y, x] = 255
+    
+    return mask
 
-    # Define a function to grow a region from a seed point
-    def grow_region(seed_point_idx):
-        seed_point = seed_points[seed_point_idx]
-        region = [seed_point]
-        region_mean = region_means[seed_point_idx]
+# Load the image
+image = cv2.imread('results/Q2/input.jpg', cv2.IMREAD_GRAYSCALE)
 
-        while region:
-            current_pixel = region.pop(0)
-            x, y = current_pixel
+# Define seed points 
+seed_points = [(490, 200), (680,170), (400,400)]  
 
-            # Check if the pixel has been visited
-            if not visited[y, x]:
-                visited[y, x] = True
+# Define threshold range for pixel values
+threshold_range = 10
 
-                # Check neighboring pixels within the patch size
-                for neighbor in get_neighboring_pixels(x, y, patch_size):
-                    nx, ny = neighbor
-                    if not visited[ny, nx]:
-                        pixel_value = image[ny, nx]
-                        if within_error_range(pixel_value, region_mean):
-                            region.append(neighbor)
-                            segmented_image[ny, nx] = 255
-                            visited[ny, nx] = True
-                            # Update region mean
-                            region_mean = calculate_region_mean([image[p[1], p[0]] for p in region])
-                # Update region mean
-                region_means[seed_point_idx] = region_mean
+# Perform region-growing
+segmented_image = region_growing(image, seed_points, threshold_range)
 
-    # Grow regions from each seed point
-    for i, seed_point in enumerate(seed_points):
-        grow_region(i)
-
-    return segmented_image
-
-image = cv2.imread('data/sample.jpg', 0)
-ret, img = cv2.threshold(image, 150, 255, cv2.THRESH_BINARY)
-cv2.imshow('Input', img)
-cv2.waitKey()
-
-seed_points = [(125, 100)]  # seed points
-error_threshold = 10  # error threshold
-patch_size = 64  # patch size
-
-segmented_image = region_growing_with_error(image, seed_points, error_threshold, patch_size)
-
+cv2.destroyAllWindows()
 # Display the segmented image
 cv2.imshow('Segmented Image', segmented_image)
 cv2.waitKey(0)
