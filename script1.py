@@ -14,7 +14,7 @@ def generateImage(width, height):
 
     # Assign pixel values for different regions
     # Background (Black)
-    image[:, :] = 0
+    image[:, :] = 255
 
     # Square (Gray)
     square_size = width // 2
@@ -25,16 +25,22 @@ def generateImage(width, height):
     # Circle (White)
     circle_radius = width // 5
     circle_center = (width - circle_radius, height // 2)
-    cv2.circle(image, circle_center, circle_radius, 255, -1)  # Black color
+    cv2.circle(image, circle_center, circle_radius, 0, -1)  # white color
 
     return image
 
 def addGaussianNoise(image):
     # Define mean and standard deviation
     mean = 0
-    stddev = 25
-    noise = np.random.normal(mean, stddev, size=image.shape).astype(np.uint8)
-    noisy_image = cv2.add(image, noise)
+    stddev = 50
+    # Convert image to floating-point data type
+    image_float = image.astype(np.float32)
+    # Generate Gaussian noise with specified mean and standard deviation
+    noise = np.random.normal(mean, stddev, size=image.shape).astype(np.float32)
+    # Add noise to the image
+    img_noised = image_float + noise
+    # Clip pixel values to ensure they are within the valid range [0, 255]
+    noisy_image = np.clip(img_noised, 0, 255).astype(np.uint8)
     return noisy_image
 
 # Display the image
